@@ -1,0 +1,73 @@
+@import url(https://fonts.googleapis.com/css?family=Lato:400,700,300)
+@import "colours"
+
+html, body
+  background: tf-white
+  width: 100%
+  overflow-x: hidden
+  font-family: 'Lato', sans-serif
+
+a:hover
+  cursor: pointer
+
+.logo
+  background: url("../img/trifecta.svg")
+
+.header-logo
+  height: 30px
+
+.logo-white
+  background: url("../img/trifecta-white.svg")
+
+.btn
+  font-family: 'Lato', sans-serif !important
+  border-radius: 2px !important
+  transition: all 0.4s ease 0s
+  &:focus
+    outline: none !important
+
+.tf-btn-primary
+  color: tf-white
+  text-shadow: 1px 1px 1px alpha(tf-black, 0.2)
+  background: tf-green-1
+  &:hover
+    color: tf-white !important
+    background: tf-green-2
+  &:focus
+    color: tf-white !important
+
+.btn-social
+  text-shadow: 1px 1px 1px alpha(tf-black, 0.2)
+  &:hover
+    color: tf-white !important
+
+.lost-container
+  background: url("../img/404.jpg")
+  background-size: cover
+  background-position: center
+  width: 100vw
+  height: 100vh
+  padding: 15px 15px
+  font-family: 'Lato', sans-serif
+  color: #222
+  .lost-header
+    font-size: 7em
+    line-height: 1em
+  .lost-subheader
+    font-size: 2.5em
+    margin-bottom: 30px
+  .lost-content
+    font-size: 1.5em
+
+@media (max-width: 991px)
+  .lost-container
+    background-position: 75% 50%
+    padding: 30px 0
+    .lost-header
+      font-size: 10em
+    .lost-subheader
+      font-size: 3em
+    .lost-content
+      font-size: 3em
+      padding: 20px 30px !important
+      border-radius: 10px !important

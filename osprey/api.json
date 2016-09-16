@@ -1,0 +1,504 @@
+{
+    "name": "osprey",
+    "description": "Core service for Trifecta, handling users, activities, competitions etc.",
+    "base_url": "http://trifecta.io",
+    "apidoc": {"version": "0.9.11"},
+    "enums": {
+      "ActivityFlag": {
+        "description": "Describes a flag on an activity",
+        "values": [
+          { "name": "Trainer", "description": "Whether the activity was completed on a indoor trainer" },
+          { "name": "Commute", "description": "Whether the activity was completed as part of a commute" },
+          { "name": "Manual", "description": "Whether the activity was uploaded manually" },
+          { "name": "Flagged", "description": "Whether the activity is flagged as possibly being dishonest" },
+          { "name": "PowerMeter", "description": "Whether the ride was performed with a power meter" },
+          { "name": "Hidden", "description": "Whether the activity is visible only to the user who did it" }
+        ]
+      },
+
+      "ActivityRange": {
+        "description": "Describes the type of activity",
+        "values": [
+          { "name": "Single", "description": "A single activity" },
+          { "name": "Cumulative", "description": "A cumulative activity" }
+        ]
+      },
+
+      "ActivityType": {
+        "description": "Describes the type of activity",
+        "values": [
+          { "name": "Swim", "description": "A swim activity" },
+          { "name": "Ride", "description": "A bike activity" },
+          { "name": "VirtualRide", "description": "A virtual bike activity" },
+          { "name": "Run", "description": "A run activity" }
+        ]
+      },
+
+      "PrivacyType": {
+        "description": "The privacy setting for a user's profile",
+        "values": [
+          { "name": "Public", "description": "Publicly viewable information. Weight and height are hidden." },
+          { "name": "Friends", "description": "Only immediate followers are able to view your profile. Weight and height are hidden." },
+          { "name": "Hidden", "description": "User information is hidden to everyone except the user." }
+        ]
+      },
+
+      "RoleType": {
+        "description": "The role setting for the user",
+        "values": [
+          { "name": "Admin", "description": "A site administrator" },
+          { "name": "User", "description": "A regular site user" }
+        ]
+      },
+
+      "StreamType": {
+        "description": "Describes the type of stream",
+        "values": [
+          { "name": "Time", "description": "The stream contains time data points." },
+          { "name": "LatLng", "description": "The stream contains latitude longitude data points." },
+          { "name": "Distance", "description": "The stream contains distance data points." },
+          { "name": "Altitude", "description": "The stream contains altitude data points." },
+          { "name": "ElevationGain", "description": "The stream contains elevation gain data points." },
+          { "name": "Velocity", "description": "The stream contains velocity data points." },
+          { "name": "Heartrate", "description": "The stream contains heartrate data points." },
+          { "name": "Cadence", "description": "The stream contains cadence data points." },
+          { "name": "Power", "description": "The stream contains power data points." },
+          { "name": "PowerCalc", "description": "The stream contains power data points." },
+          { "name": "Temperature", "description": "The stream contains temperature data points." },
+          { "name": "Moving", "description": "The stream contains moving data points." },
+          { "name": "Grade", "description": "The stream contains grade data points." }
+        ]
+      },
+
+      "ExternalSource": {
+        "description": "Sources which activities are imported from",
+        "values": [
+          { "name": "Strava", "description": "http://strava.com" }
+        ]
+      }
+    },
+
+    "models": {
+      "User": {
+        "description": "The user information necessary in the Web application (free of backend logic)",
+        "fields": [
+          { "name": "id", "type": "uuid", "description": "A unique user identification number, auto-inc" },
+          { "name": "firstName", "type": "string", "description": "The user's first name", "example": "James" },
+          { "name": "lastName", "type": "string", "description": "The user's last name", "example": "Smith" },
+          { "name": "email", "type": "string", "description": "The user's email address", "example": "jsmith@gmail.com" },
+          { "name": "city", "type": "string", "description": "The user's home city" },
+          { "name": "province", "type": "string", "description": "The user's home state/region/province" },
+          { "name": "country", "type": "string", "description": "The user's home country" },
+          { "name": "sex", "type": "string", "required": false },
+          { "name": "dateOfBirth", "type": "date-time-iso8601", "required": false },
+          { "name": "age", "type": "integer", "required": false },
+          { "name": "avatarURL", "type": "string", "description": "The link to the user's profile image" },
+          { "name": "stravaToken", "type": "string", "description": "The user's Strava auth token", "required": false },
+          { "name": "stravaAvatar", "type": "string", "description": "The user's Strava profile picture", "required": false },
+          { "name": "googleCalendarAccessToken", "type": "string", "description": "The user's Google Calendar access token", "required": false },
+          { "name": "googleCalendarRefreshToken", "type": "string", "description": "The user's Google Calendar refresh token", "required": false },
+          { "name": "googleCalendarIDs", "type": "[string]", "description": "List of the user's google calendar ids", "required": false },
+          { "name": "privacy", "type": "PrivacyType", "description": "The user's privacy setting: Public, Friends, Hidden" },
+          { "name": "role", "type": "RoleType", "description": "The user's role: Admin, User" },
+          { "name": "createdAt", "type": "date-time-iso8601", "description": "The date + time when the user registered with Trifecta" }
+        ]
+      },
+
+      "UserForm": {
+        "description": "Form to create a User",
+        "fields": [
+          { "name": "firstName", "type": "string", "description": "The user's first name", "example": "James" },
+          { "name": "lastName", "type": "string", "description": "The user's last name", "example": "Smith" },
+          { "name": "email", "type": "string", "description": "The user's email address", "example": "jsmith@gmail.com" },
+          { "name": "city", "type": "string", "description": "The user's home city" },
+          { "name": "province", "type": "string", "description": "The user's home state/region/province" },
+          { "name": "country", "type": "string", "description": "The user's home country" },
+          { "name": "sex", "type": "string", "required": false },
+          { "name": "dateOfBirth", "type": "date-time-iso8601", "required": false },
+          { "name": "age", "type": "integer", "required": false },
+          { "name": "avatarURL", "type": "string", "description": "The link to the user's profile image" },
+          { "name": "stravaToken", "type": "string", "description": "The user's Strava auth token", "required": false },
+          { "name": "stravaAvatar", "type": "string", "description": "The user's Strava profile picture", "required": false },
+          { "name": "googleCalendarAccessToken", "type": "string", "description": "The user's Google Calendar access token", "required": false },
+          { "name": "googleCalendarRefreshToken", "type": "string", "description": "The user's Google Calendar refresh token", "required": false },
+          { "name": "googleCalendarIDs", "type": "[string]", "description": "List of the user's google calendar ids", "required": false },
+          { "name": "privacy", "type": "PrivacyType", "description": "The user's privacy setting: Public, Friends, Hidden" },
+          { "name": "role", "type": "RoleType", "description": "The user's role: Admin, User" }
+        ]
+      },
+
+      "UserPhysicalAttributes": {
+        "description": "A user's physical attributes",
+        "fields": [
+          { "name": "userID", "type": "uuid" },
+          { "name": "height", "type": "double", "description": "height in cm" },
+          { "name": "weight", "type": "double", "description": "weight in kg" },
+          { "name": "waist", "type": "double", "description": "waist in cm", "required": false },
+          { "name": "bmi", "type": "double", "description": "bmi in kg/m^2", "required": false }
+        ]
+      },
+
+      "UserPhysicalAttributesForm": {
+        "description": "Form to update a user's physical attributes",
+        "fields": [
+          { "name": "height", "type": "double", "description": "height in cm", "required": false },
+          { "name": "weight", "type": "double", "description": "weight in kg", "required": false },
+          { "name": "waist", "type": "double", "description": "waist in cm", "required": false },
+          { "name": "bmi", "type": "double", "description": "bmi in kg/m^2", "required": false }
+        ]
+      },
+
+      "UserActivityAttributes": {
+        "description": "A user's attributes for each type of activity",
+        "fields": [
+          { "name": "userID", "type": "uuid" },
+          { "name": "activityType", "type": "ActivityType" },
+          { "name": "level", "type": "double", "description": "User's fitness level for this activity type" },
+          { "name": "days", "type": "integer", "description": "Number of days per training period for this activity type" },
+          { "name": "activities", "type": "integer", "description": "Number of activities per training period for this activity type" },
+          { "name": "longestDistance", "type": "double", "description": "Longest distance travelled at one time for this activity type (m)" },
+          { "name": "activityLengthRange", "type": "map[ActivityLengthRange]", "description": "Time ranges for different lengths of activities", "example": "Short -> (30, 60)" },
+          { "name": "variance", "type": "ActivityVariance", "description": "Variance of short/avg/long activities in a training period for this activity type" },
+          { "name": "activitySpecific", "type": "map[double]", "description": "Attributes specific to this activity type", "example": "bikeRollingResistance" },
+          { "name": "createdAt", "type": "date-time-iso8601", "description": "When these attributes were created" }
+        ]
+      },
+
+      "ActivityLengthRange": {
+        "description": "Range of times for an activity",
+        "fields": [
+          { "name": "lowRange", "type": "integer", "description": "Low end of the range (in minutes)" },
+          { "name": "highRange", "type": "integer", "description": "High end of the range (in minutes)"}
+        ]
+      },
+
+      "ActivityVariance": {
+        "description": "Variance fractions between ActivityLengths for a training plan",
+        "fields": [
+          { "name": "fractionShort", "type": "double" },
+          { "name": "fractionAverage", "type": "double" },
+          { "name": "fractionLong", "type": "double" }
+        ]
+      },
+
+      "UserActivityAttributesForm": {
+        "description": "Form to update a user's attributes for each type of activity",
+        "fields": [
+          { "name": "level", "type": "double", "description": "User's fitness level for this activity type", "required": false },
+          { "name": "days", "type": "integer", "description": "Number of days per training period for this activity type", "required": false },
+          { "name": "activities", "type": "integer", "description": "Number of activities per training period for this activity type", "required": false },
+          { "name": "longestDistance", "type": "double", "description": "Longest distance travelled at one time for this activity type (m)", "required": false },
+          { "name": "activityLengthRange", "type": "map[ActivityLengthRange]", "description": "Time ranges for different lengths of activities", "example": "Short -> (30, 60)", "required": false },
+          { "name": "variance", "type": "ActivityVariance", "description": "Variance of short/avg/long activities in a training period for this activity type", "required": false },
+          { "name": "activitySpecific", "type": "map[double]", "description": "Attributes specific to this activity type", "example": "bikeRollingResistance", "required": false }
+        ]
+      },
+
+      "SingleActivity": {
+        "description": "A single activity performed by an user at one time",
+        "fields": [
+          { "name": "id", "type": "uuid", "description": "The unique identifier for an activity, auto-inc" },
+          { "name": "userID", "type": "uuid", "description": "The user ID who completed the activity" },
+          { "name": "name", "type": "string", "description": "The user-provided name for the activity" },
+          { "name": "activityType", "type": "ActivityType", "description": "The type of the activity (Swim, Bike, Run)" },
+          { "name": "startTime", "type": "date-time-iso8601", "description": "The start date and time of the activity " },
+          { "name": "startTimeLocal", "type": "date-time-iso8601", "description": "The start date and time of the activity at the uploaders region" },
+          { "name": "timezone", "type": "string", "description": "The timezone of where the activity took place" },
+          { "name": "startLatLng", "type": "string", "description": "The coordinates of the start location for the activity", "required": false },
+          { "name": "endLatLng", "type": "string", "description": "The coordinates of the end location for the activity", "required": false },
+          { "name": "locationCity", "type": "string", "description": "The city in which the activity took place", "required": false },
+          { "name": "locationProvince", "type": "string", "description": "The state/province/region in which the activity took place", "required": false },
+          { "name": "locationCountry", "type": "string", "description": "The country in which the activity took place", "required": false },
+          { "name": "flags", "type": "[ActivityFlag]", "description": "The flags attributed to this activity" },
+          { "name": "description", "type": "string", "description": "The user-provided description of the activity", "required": false },
+          { "name": "performanceInfoID", "type": "uuid", "description": "The ID of the performance info of the activity" },
+          { "name": "externalSource", "type": "ExternalSource", "description": "Source which the activity was imported from" },
+          { "name": "externalID", "type": "string", "description": "Unique identifier to find activity at external source" }
+        ]
+      },
+
+      "PerformanceInfo": {
+        "plural": "PerformanceInfo",
+        "description": "The performance information about an activity. This is seperate from the activity model to keep the models lightweight.",
+        "fields": [
+          { "name": "id", "type": "uuid", "description": "The unique identifier for a performance" },
+          { "name": "distance", "type": "double", "description": "The summed distance covered by the user in the associated activities" },
+          { "name": "movingTime", "type": "integer", "description": "The summed moving time spent moving by the user" },
+          { "name": "elapsedTime", "type": "integer", "description": "The summed elapsed of the activities completed" },
+          { "name": "totalElevationGain", "type": "double", "description": "The summed total elevation climbed by the user in the included activities" },
+          { "name": "averageSpeed", "type": "double", "description": "The average speed of the user during the cumulative activity", "required": false },
+          { "name": "maxSpeed", "type": "double", "description": "The maximum speed of the user during the cumulative activity", "required": false },
+          { "name": "averagePower", "type": "double", "description": "The average watts (cycling) of the user during the cumulative activity", "required": false },
+          { "name": "averageCadence", "type": "double", "description": "The average cadence (cycling) of the user during the cumulative activity", "required": false },
+          { "name": "averageTemp", "type": "integer", "description": "The average temperature during the cumulative activity", "required": false },
+          { "name": "kilojoules", "type": "double", "description": "The amount of energy the user burned during the activity", "required": false },
+          { "name": "averageHeartrate", "type": "double", "description": "The average heartrate of the user during the cumulative activity", "required": false },
+          { "name": "maxHeartrate", "type": "double", "description": "The maximum heartrate of the user during the cumulative activity", "required": false },
+          { "name": "calories", "type": "double", "description": "The amount of energy the user burned during the activity", "required": false }
+        ]
+      },
+
+      "PerformanceInfoForm": {
+        "plural": "PerformanceInfo",
+        "description": "Form with which to create a performance info model",
+        "fields": [
+          { "name": "distance", "type": "double", "description": "The summed distance covered by the user in the associated activities" },
+          { "name": "movingTime", "type": "integer", "description": "The summed moving time spent moving by the user" },
+          { "name": "elapsedTime", "type": "integer", "description": "The summed elapsed of the activities completed" },
+          { "name": "totalElevationGain", "type": "double", "description": "The summed total elevation climbed by the user in the included activities" },
+          { "name": "averageSpeed", "type": "double", "description": "The average speed of the user during the cumulative activity", "required": false },
+          { "name": "maxSpeed", "type": "double", "description": "The maximum speed of the user during the cumulative activity", "required": false },
+          { "name": "averagePower", "type": "double", "description": "The average watts (cycling) of the user during the cumulative activity", "required": false },
+          { "name": "averageCadence", "type": "double", "description": "The average cadence (cycling) of the user during the cumulative activity", "required": false },
+          { "name": "averageTemp", "type": "integer", "description": "The average temperature during the cumulative activity", "required": false },
+          { "name": "kilojoules", "type": "double", "description": "The amount of energy the user burned during the activity", "required": false },
+          { "name": "averageHeartrate", "type": "double", "description": "The average heartrate of the user during the cumulative activity", "required": false },
+          { "name": "maxHeartrate", "type": "double", "description": "The maximum heartrate of the user during the cumulative activity", "required": false },
+          { "name": "calories", "type": "double", "description": "The amount of energy the user burned during the activity", "required": false }
+        ]
+      },
+
+      "ActivityMap": {
+        "description": "Plots of activities to be overlayed on a map",
+        "fields": [
+          { "name": "id", "type": "uuid", "description": "The unique identifier for the map" },
+          { "name": "activityID", "type": "uuid", "description": "The id of the activity that the map describes" },
+          { "name": "polyline", "type": "string", "description": "detailed line describing the activity on a map" },
+          { "name": "summaryPolyline", "type": "string", "description": "summary line with less resolution" }
+        ]
+      },
+
+      "Stream": {
+        "description": "Raw data associated with an activity",
+        "fields": [
+          { "name": "activityID", "type": "uuid", "description": "The id of the activity the stream is for" },
+          { "name": "streamType", "type": "StreamType", "description": "The type of data the stream represents: time." },
+          { "name": "data", "type": "string", "description": "Comma separated data points" },
+          { "name": "seriesType", "type": "string", "description": "The series type used for down sampling. Either time or distance, but generally distance I think." },
+          { "name": "originalSize", "type": "integer", "description": "The length of the stream" },
+          { "name": "resolution", "type": "string", "description": "How detailed the data is" }
+        ]
+      },
+
+      "LatLng": {
+        "description": "Latitude and Longitude pair",
+        "fields": [
+          { "name": "lat", "type": "double", "description": "Latitude" },
+          { "name": "lng", "type": "double", "description": "Longitude" }
+        ]
+      },
+
+      "HealthCheck": {
+        "description": "Object used to respond to health checks",
+        "plural": "HealthCheck",
+        "fields": [ { "name": "status", "type": "string", "description": "example: healthy" } ]
+      }
+    },
+
+    "resources": {
+      "UserPhysicalAttributes": {
+        "operations": [
+          {
+            "method": "GET",
+            "path": "/:userID",
+            "responses": {
+              "200": { "type": "UserPhysicalAttributes" },
+              "404": { "type": "unit" }
+            }
+          },
+          {
+            "method": "PATCH",
+            "description": "Update physical attributes for a user",
+            "path": "/:userID",
+            "body": { "type": "UserPhysicalAttributesForm" },
+            "responses": {
+              "200": { "type": "UserPhysicalAttributes" },
+              "409": { "type": "string" }
+            }
+          },
+          {
+            "method": "POST",
+            "description": "Create new physcial attributes for a user",
+            "path": "/:userID",
+            "body": { "type": "UserPhysicalAttributesForm" },
+            "responses": {
+              "200": { "type": "UserPhysicalAttributes" },
+              "409": { "type": "string" }
+            }
+          }
+        ]
+      },
+
+      "UserActivityAttributes": {
+        "operations": [
+          {
+            "method": "GET",
+            "path": "/:userID",
+            "responses": {
+              "200": { "type": "[UserActivityAttributes]" },
+              "404": { "type": "unit" }
+            }
+          },
+          {
+            "method": "PATCH",
+            "description": "Update activity attributes for a user",
+            "path": "/:userID/:activityType",
+            "body": { "type": "UserActivityAttributesForm" },
+            "responses": {
+              "200": { "type": "UserActivityAttributes" },
+              "409": { "type": "string" }
+            }
+          },
+          {
+            "method": "POST",
+            "description": "Create new activity attributes for a user",
+            "path": "/:userID/:activityType",
+            "body": { "type": "UserActivityAttributesForm" },
+            "responses": {
+              "200": { "type": "UserActivityAttributes" },
+              "409": { "type": "string" }
+            }
+          }
+        ]
+      },
+
+      "SingleActivity": {
+        "operations": [
+          {
+            "method": "GET",
+            "path": "/:id",
+            "description": "Retrieve a single activity by its activity ID",
+            "responses": {
+              "200": {
+                  "type": "SingleActivity"
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/user/:userID",
+            "description": "Retrieve all activities for a user",
+            "responses": {
+              "200": {
+                  "type": "[SingleActivity]"
+              }
+            }
+          }
+        ]
+      },
+
+      "PerformanceInfo": {
+        "operations": [
+          {
+            "method": "GET",
+            "path": "/:id",
+            "description": "Retrieve performance info by its ID",
+            "responses": {
+              "200": {
+                  "type": "PerformanceInfo"
+              }
+            }
+          },
+          {
+            "method": "POST",
+            "description": "Creates a performance info object and returns the new ID",
+            "body": { "type": "PerformanceInfoForm" },
+            "responses": {
+              "200": {
+                  "type": "PerformanceInfo"
+              }
+            }
+          }
+        ]
+      },
+
+      "User": {
+        "operations": [
+          {
+            "method": "GET",
+            "path": "/allUserIDs",
+            "description": "Retrieve all User IDs",
+            "responses": {
+              "200": {
+                "type": "[uuid]"
+              }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/:id",
+            "description": "Retrieve a single display user by his/her ID (used for front end web app)",
+            "responses": {
+              "200": { "type": "User" },
+              "404": { "type": "String" }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/email/:email",
+            "description": "Retrieve a single display user by his/her email (used for front end web app)",
+            "responses": {
+              "200": { "type": "User" },
+              "404": { "type": "String" }
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/exists/:email",
+            "description": "Determine if a user exists by their email",
+            "responses": {
+              "200": { "type": "boolean" }
+            }
+          },
+          {
+            "method": "PATCH",
+            "description": "Update a User model",
+            "parameters": [{ "name": "userID", "type": "uuid", "required": true }],
+            "body": { "type": "UserForm" },
+            "responses": {
+              "200": {
+                "type": "User"
+              }
+            }
+          },
+          {
+            "method": "POST",
+            "description": "Create a user, return the sequence id",
+            "body": { "type": "UserForm" },
+            "responses": {
+              "200": {
+                "type": "uuid"
+              }
+            }
+          }
+        ]
+      },
+
+      "Stream": {
+        "operations": [
+          {
+            "method": "GET",
+            "description": "Retrieve Streams by the specified criteria",
+            "parameters": [
+              { "name": "activityID", "type": "uuid", "required": true },
+              { "name": "streamTypes", "type": "[StreamType]", "required": true }
+            ],
+            "responses": {
+              "200": { "type": "[Stream]" }
+            }
+          }
+        ]
+      },
+
+      "HealthCheck": {
+        "operations": [
+         {
+           "method": "GET",
+           "responses": {
+             "200": { "type": "string" }
+           }
+         }
+        ]
+      }
+    }
+}

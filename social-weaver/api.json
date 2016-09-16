@@ -1,0 +1,63 @@
+{
+  "name": "social-weaver",
+  "apidoc": {"version": "0.9.11"},
+  "description": "Scheduling engine for Trifecta",
+  "imports": [
+    { "uri": "http://apidoc.me/trifectalabs/raven/latest/service.json" },
+    { "uri": "http://apidoc.me/trifectalabs/osprey/latest/service.json" }
+  ],
+  "enums": {
+
+  },
+  "models": {
+    "ActivityTime": {
+      "description": "",
+      "fields": [
+        { "name": "activityID", "type": "UUID", "description": "" },
+        { "name": "startTime", "type": "date-time-iso8601", "description": "" }
+      ]
+    },
+    "TrainingSchedule": {
+      "description": "",
+      "fields": [
+        { "name": "schedule", "type": "[ActivityTime]", "description": "" }
+      ]
+    },
+    "HealthCheck": {
+      "description": "Object used to respond to health checks",
+      "plural": "HealthCheck",
+      "fields": [ { "name": "status", "type": "string", "description": "example: healthy" } ]
+    }
+  },
+  "resources": {
+    "TrainingSchedule": {
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/schedule/:userID",
+          "parameters": [
+            { "name": "userID", "type": "UUID", "location": "path", "required": true },
+            { "name": "activityType", "type": "com.trifectalabs.osprey.v0.enums.ActivityType", "required": true },
+            { "name": "startTime", "type": "date-time-iso8601", "required": true },
+            { "name": "numberOfSchedulesToBeCreated", "type": "integer", "required": false }
+          ],
+          "body": { "type": "[com.trifectalabs.raven.v0.models.TrainingPlanActivity]" },
+          "responses": {
+            "200": { "type": "[TrainingSchedule]" },
+            "404": { "type": "unit" }
+          }
+        }
+      ]
+    },
+    "HealthCheck": {
+      "operations": [
+      {
+        "method": "GET",
+        "responses": {
+          "200": { "type": "string" }
+        }
+      }
+      ]
+    }
+  }
+}

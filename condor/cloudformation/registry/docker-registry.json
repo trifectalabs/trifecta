@@ -1,0 +1,385 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Launches a Docker Registry",
+
+  "Parameters" : {
+    "InstanceType" : {
+      "Description" : "EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : [
+        "t2.micro", "t2.small", "t2.medium", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge",
+        "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge",
+        "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge",
+        "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge", "hs1.8xlarge",
+        "g2.2xlarge"
+      ],
+      "ConstraintDescription" : "must be a valid, HVM-compatible EC2 instance type."
+    },
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "String"
+    },
+    "DnsPrefix" : {
+      "Description" : "(Optional) Prefix for the registry's DNS record (<prefix>.<zone>)",
+      "Type": "String",
+      "Default": ""
+    },
+    "DnsZone" : {
+      "Description" : "(Optional) Route53-hosted zone to use for the registry's DNS record (<prefix>.<zone>)",
+      "Type": "String",
+      "Default": ""
+    },
+    "DockerImage" : {
+      "Description" : "Path of the Docker Registry image to use (format: '[<registry>[:<port>]/]<repository>[:<version>]')",
+      "Type" : "String",
+      "Default" : "registry"
+    },
+    "S3Bucket" : {
+      "Description" : "Bucket to use for Docker images (e.g., 'mycompany-docker')",
+      "Type" : "String"
+    },
+    "S3Region" : {
+      "Description" : "S3 Region in which the bucket resides",
+      "Type" : "String",
+      "Default" : "us-east-1"
+    },
+    "SslCertificate" : {
+      "Description" : "ARN of an existing SSL certificate on AWS (e.g., 'arn:aws:iam::123456789:server-certificate/docker.mycompany.com')",
+      "Type" : "String"
+    },
+    "Subnets" : {
+      "Description" : "List of VPC subnet IDs for the cluster. Note: must match the passed AvailabilityZones.",
+      "Type" : "CommaDelimitedList"
+    },
+    "VpcId" : {
+      "Description" : "VPC associated with the provided subnets",
+      "Type" : "String"
+    },
+    "RegistryAuth" : {
+      "Description" : "Comma-delimited list of htpasswd strings that grant access to the registry (e.g., 'user1:$apr1$BspgNsum$8ZdGQ/KXRFccnlRXF6StP.,user2:$apr1$BspgNsum$8ZdGQ/KXRFccnlRXF6StP.')",
+      "Type": "CommaDelimitedList"
+    },
+    "AdminSecurityGroup" : {
+      "Description" : "Existing security group that should be granted administrative access (e.g., 'sg-123456')",
+      "Type" : "String"
+    },
+    "AvailabilityZones": {
+      "Description" : "(Optional) If passed, only launch Docker Registry nodes in these AZs (e.g., 'us-east-1a,us-east-1b'). Note: these must match the passed Subnets.",
+      "Type" : "CommaDelimitedList",
+      "Default" : ""
+    },
+    "HealthCheckGracePeriod": {
+      "Description": "The length of time in seconds after a new EC2 instance comes into service that Auto Scaling starts checking its health.",
+      "Type": "String",
+      "Default": "500"
+    }
+  },
+
+  "Conditions" : {
+    "UseAllAvailabilityZones" : {"Fn::Equals" : [{ "Fn::Join" : ["", {"Ref" : "AvailabilityZones"} ]}, ""]},
+    "CreateDnsEntry" : {"Fn::And": [
+      {"Fn::Not": [{"Fn::Equals" : [{"Ref" : "DnsPrefix"}, ""]}]},
+      {"Fn::Not": [{"Fn::Equals" : [{"Ref" : "DnsZone"}, ""]}]}
+    ]}
+  },
+
+  "Mappings" : {
+    "RegionMap" : {
+      "us-east-1" : {
+        "AMI" : "ami-6bc7ea01"
+      },
+      "us-west-1" : {
+        "AMI" : "ami-bc4951f9"
+      },
+      "us-west-2" : {
+        "AMI" : "ami-49411979"
+      },
+      "eu-west-1" : {
+        "AMI" : "ami-1566ea62"
+      },
+      "ap-southeast-1" : {
+        "AMI" : "ami-787b512a"
+      },
+      "ap-southeast-2" : {
+        "AMI" : "ami-c35c28f9"
+      },
+      "ap-northeast-1" : {
+        "AMI" : "ami-7a98817b"
+      },
+      "sa-east-1" : {
+        "AMI" : "ami-bd6ad6a0"
+      }
+    }
+  },
+
+  "Resources" : {
+
+    "IAMUser" : {
+      "Type" : "AWS::IAM::User",
+      "Properties" : {
+        "Policies" : [{
+          "PolicyName" : "S3Access",
+          "PolicyDocument" : {
+            "Statement": [{
+              "Action"   : "s3:*",
+              "Effect"   : "Allow",
+              "Resource" : { "Fn::Join" : ["", ["arn:aws:s3:::", {"Ref" : "S3Bucket"} ]]}
+            },
+            {
+              "Action": "s3:*",
+              "Effect": "Allow",
+              "Resource" : { "Fn::Join" : ["", ["arn:aws:s3:::", {"Ref" : "S3Bucket"} , "/*"]]}
+            }]
+          }
+        },
+        {
+          "PolicyName" : "IAMAccess",
+          "PolicyDocument" : {
+            "Statement" : [{
+              "Effect"    : "Allow",
+              "NotAction" : "iam:*",
+              "Resource"  : "*"
+            }]
+          }
+        }]
+      }
+    },
+
+    "HostKeys" : {
+      "Type" : "AWS::IAM::AccessKey",
+      "Properties" : {
+        "UserName" : { "Ref" : "IAMUser" }
+      }
+    },
+
+    "ServerGroup" : {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "HealthCheckGracePeriod": { "Ref": "HealthCheckGracePeriod" },
+        "HealthCheckType": "ELB",
+        "AvailabilityZones" : {
+          "Fn::If" : [
+            "UseAllAvailabilityZones",
+            { "Fn::GetAZs": "" },
+            {"Ref" : "AvailabilityZones"}
+          ]
+        },
+        "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+        "MinSize" : "1",
+        "MaxSize" : "1",
+        "DesiredCapacity" : "1",
+        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+        "VPCZoneIdentifier" : { "Ref" : "Subnets" }
+      }
+    },
+
+    "LaunchConfig" : {
+      "Type" : "AWS::AutoScaling::LaunchConfiguration",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "config": {
+            "files" : {
+              "/opt/docker-registry/config.yaml" : {
+                "content" : { "Fn::Join" : ["\n", [
+                  "prod:",
+                  "    standalone: true",
+                  "    loglevel: warn",
+                  "    storage: s3",
+                  "    s3_access_key: {{access_key}}",
+                  "    s3_secret_key: {{secret_key}}",
+                  "    s3_region: {{s3_region}}",
+                  "    s3_bucket: {{s3_bucket}}",
+                  "    boto_bucket: {{s3_bucket}}",
+                  "    storage_path: /srv/docker",
+                  "    secret_key: {{magic_string}}",
+                  "    search_backend: sqlalchemy",
+                  "    sqlalchemy_index_database: sqlite:////tmp/docker-registry.db",
+                  ""
+                ]]},
+                "context" : {
+                  "access_key"  : { "Ref" : "HostKeys" },
+                  "secret_key"  : { "Fn::GetAtt" : ["HostKeys", "SecretAccessKey"]},
+                  "s3_bucket"   : { "Ref" : "S3Bucket"},
+                  "s3_region"   : { "Ref" : "S3Region"},
+                  "magic_string": "fL3YHeP1cmCHH5FWm1PKaO7cdo0VXkabAgiSEestXYZDgAiQcDCsTiWpOaukB1e9"
+                },
+                "mode"    : "000700",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+              "/etc/nginx/sites-available/docker-registry" : {
+                "content" : { "Fn::Join" : ["\n", [
+                  "upstream docker-registry {",
+                  "  server localhost:5000;",
+                  "}",
+                  "",
+                  "server {",
+                  "  listen 80;",
+                  "",
+                  "  proxy_set_header  Host           $http_host;   # required for docker client's sake",
+                  "  proxy_set_header  X-Real-IP      $remote_addr; # pass on real client's IP",
+                  "  proxy_set_header  Authorization  \"\"; # see https://github.com/dotcloud/docker-registry/issues/170",
+                  "  proxy_read_timeout               900;",
+                  "",
+                  "  client_max_body_size 0; # disable any limits to avoid HTTP 413 for large image uploads",
+                  "",
+                  "  # required to avoid HTTP 411: see Issue #1486 (https://github.com/docker/docker/issues/1486)",
+                  "  chunked_transfer_encoding on;",
+                  "",
+                  "  location / {",
+                  "    auth_basic                       \"Restricted\";",
+                  "    auth_basic_user_file             /opt/docker-registry/htpasswd;",
+                  "    proxy_pass                       http://docker-registry;",
+                  "  }",
+                  "",
+                  "  location /_ping {",
+                  "    auth_basic off;",
+                  "  }",
+                  "",
+                  "  location /v1/_ping {",
+                  "    auth_basic off;",
+                  "  }",
+                  "",
+                  "  location /health {",
+                  "    proxy_pass http://docker-registry/v1/_ping;",
+                  "  }",
+                  "}"
+                ]]},
+                "mode"    : "000644",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+              "/opt/docker-registry/htpasswd" : {
+                "content" : { "Fn::Join" : ["\n", { "Ref" : "RegistryAuth" }]},
+                "mode"    : "000644",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+            }
+          }
+        }
+      },
+      "Properties" : {
+        "KeyName" : { "Ref" : "KeyName" },
+        "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "AMI"] },
+        "SecurityGroups" : [ { "Ref" : "ServerSecurityGroup" }, { "Ref" : "AdminSecurityGroup" } ],
+        "AssociatePublicIpAddress": "true",
+        "InstanceType" : { "Ref" : "InstanceType" },
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -ex\n",
+
+          "# Helper function\n",
+          "function error_exit\n",
+          "{\n",
+          "  cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitHandle" }, "'\n",
+          "  exit 1\n",
+          "}\n",
+
+          "cfn-init -s ", { "Ref" : "AWS::StackName" }, " -r LaunchConfig ",
+          "    --access-key ",  { "Ref" : "HostKeys" },
+          "    --secret-key ", { "Fn::GetAtt": ["HostKeys", "SecretAccessKey"] },
+          "    --region ", { "Ref" : "AWS::Region" }, " || error_exit 'Failed to run cfn-init'\n",
+
+          "# make sure the package repository is up to date\n",
+          "sudo apt-get update\n",
+
+          "# Set up nginx proxy\n",
+          "sudo apt-get -y install nginx\n",
+          "rm -f /etc/nginx/sites-enabled/default\n",
+          "ln -s /etc/nginx/sites-available/docker-registry /etc/nginx/sites-enabled/docker-registry\n",
+          "service nginx restart\n",
+
+          "# Set up docker registry\n",
+          "sudo docker pull ", { "Ref": "DockerImage" }, "\n",
+          "sudo  docker run -d",
+          "   -p 5000:5000",
+          "   -v /opt/docker-registry:/registry-conf",
+          "   -e DOCKER_REGISTRY_CONFIG=/registry-conf/config.yaml",
+          "   -e SETTINGS_FLAVOR=prod",
+          "   ", { "Ref": "DockerImage" }, "|| error_exit 'Failed to launch Docker container'\n",
+
+          "# All is well so signal success\n",
+          "cfn-signal -e 0 -r \"Stack setup complete\" '", { "Ref" : "WaitHandle" }, "'\n",
+
+          "#EOF"
+        ]]}}
+      }
+    },
+
+    "LbSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable Registry access",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" }
+        ]
+      }
+    },
+
+    "ServerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH and Registry access",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "LbSecurityGroup"} }
+        ]
+      }
+    },
+
+    "ElasticLoadBalancer" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "SecurityGroups": [{ "Ref": "LbSecurityGroup" }, { "Ref" : "AdminSecurityGroup" }],
+        "Subnets": { "Ref": "Subnets" },
+        "Listeners" : [ {
+          "LoadBalancerPort" : "443",
+          "Protocol" : "HTTPS",
+          "InstancePort" : "80",
+          "InstanceProtocol" : "HTTP",
+          "SSLCertificateId" : { "Ref" : "SslCertificate" }
+        } ],
+        "HealthCheck" : {
+          "Target" : "HTTP:80/health",
+          "HealthyThreshold" : "3",
+          "UnhealthyThreshold" : "5",
+          "Interval" : "30",
+          "Timeout" : "5"
+        }
+      }
+    },
+
+    "DnsRecord" : {
+      "Type" : "AWS::Route53::RecordSet",
+      "Condition": "CreateDnsEntry",
+      "Properties" : {
+        "HostedZoneName" : { "Fn::Join" : [ "", [{"Ref" : "DnsZone"}, "." ]]},
+        "Comment" : "Docker Registry",
+        "Name" : { "Fn::Join" : [ "", [{"Ref" : "DnsPrefix"}, ".", {"Ref" : "DnsZone"}, "."]]},
+        "Type" : "A",
+        "AliasTarget" : {
+          "HostedZoneId" : { "Fn::GetAtt" : [ "ElasticLoadBalancer", "CanonicalHostedZoneNameID" ]},
+          "DNSName" : { "Fn::GetAtt" : [ "ElasticLoadBalancer", "CanonicalHostedZoneName" ]}
+        }
+      }
+    },
+
+    "WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    }
+  },
+
+  "Outputs" : {
+    "DnsAddress" : {
+      "Description" : "Docker Registry",
+      "Value" :  { "Fn::If" : [
+        "CreateDnsEntry",
+        { "Ref" : "DnsRecord" },
+        { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}
+      ]}
+    }
+  }
+}

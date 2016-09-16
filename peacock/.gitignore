@@ -1,0 +1,12 @@
+.DS_Store
+activator/
+activator-launch-1.2.12.jar
+activator.bat
+target/
+.idea/
+logs/
+public/
+elm-stuff/
+node_modules/
+elm.js
+

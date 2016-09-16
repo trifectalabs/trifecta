@@ -1,0 +1,29 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# LANDING
+GET         /                                @controllers.ApplicationController.index
+GET         /signin                          @controllers.ApplicationController.signIn
+GET         /signup                          @controllers.ApplicationController.signUp
+GET         /signout                         @controllers.ApplicationController.signOut
+GET         /authenticate/:provider          @controllers.SocialAuthController.authenticate(provider)
+POST        /authenticate/credentials        @controllers.CredentialsAuthController.authenticate
+POST        /signup                          @controllers.SignUpController.signUp
+
+# APP
+GET         /dashboard                                @controllers.ApplicationController.dashboard
+GET         /onboarding                               @controllers.ApplicationController.onboarding
+GET         /profile                                  @controllers.ApplicationController.profile
+#GET         /:userID                                  @controllers.ApplicationController.user(userID)
+#GET         /:userID/trainingplan/:trainingPlanID     @controllers.ApplicationController.trainingPlan(userID, trainingPlanID)
+
+# API
+GET         /api/init                                         @controllers.ApplicationController.init
+POST        /api/mailinglist/add/:email                       @controllers.MailingListController.add(email)
+GET         /api/trainingplans/:userID/:offset/:limit         @controllers.RavenController.trainingPlans(userID, offset, limit)
+GET         /api/trainingplan/:trainingPlanID                 @controllers.RavenController.trainingPlan(trainingPlanID)
+POST        /api/user                                         @controllers.UserProfileController.postUser
+
+# Map static resources from the /public folder to the /assets URL path
+GET         /assets/*file                    controllers.Assets.at(path="/public", file)

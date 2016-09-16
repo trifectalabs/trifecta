@@ -1,0 +1,40 @@
+{
+    "id": "social-weaver", 
+    "cpus": 0.3,
+    "mem": 650,
+    "instances": 1,
+    "cmd": "bin/social-weaver-api",
+    "container": {
+      "type": "DOCKER",
+      "docker": {
+        "image": "docker.trifecta.io/social-weaver-api:0.0.1",
+        "network": "BRIDGE",
+        "forcePullImage": true,
+        "portMappings": [
+          {
+            "containerPort": 9000,
+            "hostPort": 0,
+            "servicePort": 0,
+            "protocol": "tcp"
+          }
+        ]
+      }
+    },
+    "env": {
+      "CASSANDRA_HOST": "172.17.0.1",
+      "OSPREY_HOST": "http://osprey.dev.trifecta.io",
+      "OSPREY_PORT": "80",
+      "RAVEN_HOST": "http://raven.dev.trifecta.io",
+      "RAVEN_PORT": "80"
+    },
+    "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/HealthCheck",
+      "gracePeriodSeconds": 3,
+      "intervalSeconds": 10,
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "maxConsecutiveFailures": 3
+    }]
+}

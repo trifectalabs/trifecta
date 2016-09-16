@@ -1,0 +1,58 @@
+{
+	"name": "arctic-tern",
+	"apidoc": {"version": "0.9.11"},
+	"description": "Route generation service. Creates custom routes for runners and cyclists",
+	"models": {
+	  "Route": {
+	    "fields": [
+	      {"name": "id", "type": "integer"},
+	      {"name": "polyline", "type": "string"},
+	      {"name": "targetdistance", "type": "double"},
+	      {"name": "targetelevation", "type": "double"},
+	      {"name": "actualdistance", "type": "double"},
+	      {"name": "actualelevation", "type": "double"},
+	      {"name": "cost", "type": "double"}
+	   	]
+		},
+		"Point": {
+			"fields": [
+				{"name": "lat",  "type": "double"},
+				{"name": "long","type": "double"}
+			]
+		},
+    "HealthCheck": {
+      "description": "Object used to respond to health checks",
+      "plural": "HealthCheck",
+      "fields": [ { "name": "status", "type": "string", "description": "example: healthy" } ]
+    }
+	},
+	"resources": {
+  	"Route": {
+  		"operations": [
+  			{
+  				"method": "GET",
+  				"description": "Request a new generated route matching the specified constraints",
+				"parameters": [
+					{ "name": "distance", "type": "double", "required": true },
+					{ "name": "elevation", "type": "double", "required": true },
+					{ "name": "start_lat", "type": "double", "required": true },
+					{ "name": "start_lng", "type": "double", "required": true }
+				],
+  				"responses": {
+  					"200": { "type": "Route" }
+  				}
+  			}
+  		]
+  	},
+    "HealthCheck": {
+      "operations": [
+      {
+        "method": "GET",
+        "responses": {
+          "200": { "type": "string" }
+        }
+      }
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+    "id": "arctic-tern", 
+    "cpus": 0.1,
+    "mem": 500,
+    "instances": 1,
+    "cmd": "bin/arctic-tern",
+    "container": {
+      "type": "DOCKER",
+      "docker": {
+        "image": "docker.trifecta.io/arctic-tern:0.0.1",
+        "network": "BRIDGE",
+        "forcePullImage": true,
+        "portMappings": [
+          {
+            "containerPort": 9000,
+            "hostPort": 0,
+            "servicePort": 0,
+            "protocol": "tcp"
+          }
+        ]
+      }
+    },
+    "env": {
+      "POSTGRES_HOST": "10.0.1.219"
+    },
+    "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/HealthCheck",
+      "gracePeriodSeconds": 3,
+      "intervalSeconds": 10,
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "maxConsecutiveFailures": 5
+    }]
+}

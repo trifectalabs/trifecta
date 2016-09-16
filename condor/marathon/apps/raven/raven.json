@@ -1,0 +1,38 @@
+{
+    "id": "raven", 
+    "cpus": 0.5,
+    "mem": 650,
+    "instances": 1,
+    "cmd": "bin/raven-api",
+    "container": {
+      "type": "DOCKER",
+      "docker": {
+        "image": "docker.trifecta.io/raven-api:0.0.7",
+        "network": "BRIDGE",
+        "forcePullImage": true,
+        "portMappings": [
+          {
+            "containerPort": 9000,
+            "hostPort": 0,
+            "servicePort": 0,
+            "protocol": "tcp"
+          }
+        ]
+      }
+    },
+    "env": {
+      "CASSANDRA_HOST": "172.17.0.1",
+      "OSPREY_HOST": "http://osprey.dev.trifecta.io",
+      "OSPREY_PORT": "80"
+    },
+    "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/HealthCheck",
+      "gracePeriodSeconds": 3,
+      "intervalSeconds": 10,
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "maxConsecutiveFailures": 3
+    }]
+}

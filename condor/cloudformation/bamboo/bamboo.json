@@ -1,0 +1,261 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Launches a pool of Bamboo instances",
+
+  "Parameters" : {
+    "InstanceAmi" : {
+      "Description" : "Mesos AMI",
+      "Type" : "String"
+    },
+
+    "InstanceType" : {
+      "Description" : "EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : [
+        "t2.micro", "t2.small", "t2.medium",
+        "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge",
+        "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge",
+          "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge",
+          "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge",
+            "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge",
+            "hs1.8xlarge", "g2.2xlarge"
+      ],
+      "ConstraintDescription" : "must be a valid, HVM-compatible EC2 instance type."
+    },
+
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "AWS::EC2::KeyPair::KeyName"
+    },
+    "ClusterSize" : {
+      "Description" : "Number of nodes to launch",
+      "Type" : "Number"
+    },
+    "DockerCredentials" : {
+      "Description" : "JSON string to be saved as .dockercfg",
+      "Type" : "String",
+      "Default" : "{}"
+    },
+    "ZkClientSecurityGroup" : {
+      "Description" : "Security group ID for ZK clients (should grant access to ZK nodes)",
+      "Type" : "AWS::EC2::SecurityGroup::Id"
+    },
+    "AdminSecurityGroup" : {
+      "Description" : "Existing security group that should be granted administrative access to Mesos (e.g., 'sg-123456')",
+      "Type" : "AWS::EC2::SecurityGroup::Id"
+    },
+    "BambooDockerImage" : {
+      "Description" : "The Bamboo Docker image (format: 'registry:port/repository:version')",
+      "Type" : "String",
+      "Default" : "thefactory/bamboo:latest"
+    },
+    "ZookeeperBambooPath" : {
+      "Description" : "The path in Zookeeper for proxy setting information",
+      "Type" : "String",
+      "Default" : "/marathon-haproxy/state"
+    },
+    "ExhibitorDiscoveryUrl" : {
+      "Description" : "Exhibitor URL that returns active ZooKeeper nodes ('getCluster') (e.g., http://<exhibitor_node>/exhibitor/v1/cluster/list)",
+      "Type" : "String"
+    },
+    "MarathonEndpoint" : {
+      "Description" : "List of the nodes running marathon",
+      "Type" : "String"
+    },
+    "Subnets" : {
+      "Description" : "List of VPC subnet IDs for the cluster. Must match the passed AvailabilityZones.",
+      "Type" : "List<AWS::EC2::Subnet::Id>"
+    },
+    "VpcId" : {
+      "Description" : "VPC associated with the provided subnets",
+      "Type" : "AWS::EC2::VPC::Id"
+    },
+    "StackCreationTimeout" : {
+      "Description" : "Timeout on initial stack creation",
+      "Type" : "String",
+      "Default": "PT10M"
+    }
+  },
+
+  "Resources" : {
+    "ServerGroup" : {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+        "MinSize" : { "Ref" : "ClusterSize" },
+        "MaxSize" : { "Ref" : "ClusterSize" },
+        "DesiredCapacity" : { "Ref" : "ClusterSize" },
+        "LoadBalancerNames" : [ { "Ref" : "PrivateElb" } ],
+        "VPCZoneIdentifier" : { "Ref" : "Subnets" },
+        "Tags" : [
+        {
+          "Key" : "role",
+          "Value" : "bamboo-node",
+          "PropagateAtLaunch" : "true"
+        }
+        ]
+      },
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : { "Ref" : "StackCreationTimeout" }
+        }
+      }
+    },
+
+  "LaunchConfig" : {
+    "Type" : "AWS::AutoScaling::LaunchConfiguration",
+    "Metadata" : {
+      "AWS::CloudFormation::Init" : {
+        "config": {
+          "packages" : {
+            "python": {
+              "awscli": []
+            }
+          },
+          "files" : {
+            "/usr/local/bin/zk-list-nodes" : {
+              "content" : { "Fn::Join" : ["", [
+                "#!/bin/bash -e\n",
+                "curl -s {{zk_discovery_url}} | python -c '",
+                "import sys, json;",
+                  "j=json.load(sys.stdin);",
+                  "servers=[\":\".join([s, str(j[\"port\"])]) for s in j[\"servers\"]];",
+                    "print \",\".join(servers)'"
+              ]]},
+              "context" : {
+                "zk_discovery_url"  : { "Ref" : "ExhibitorDiscoveryUrl" }
+              },
+              "mode"    : "000755",
+              "owner"   : "root",
+              "group"   : "root"
+            },
+            "/root/.dockercfg": {
+              "content" : { "Ref" : "DockerCredentials" },
+              "mode"    : "000644",
+              "owner"   : "root",
+              "group"   : "root"
+            },
+              "/etc/default/docker": {
+                "content" : "DOCKER_OPTS=\"-g $(readlink -f /var/lib/docker)\"\n",
+                "mode"    : "000644",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+          }
+        }
+      }
+    }, 
+  
+    "Properties" : {
+    "KeyName" : { "Ref" : "KeyName" },
+    "ImageId" : { "Ref" : "InstanceAmi" },
+    "SecurityGroups" : [ { "Ref" : "AdminSecurityGroup" }, { "Ref" : "BambooNodeSecurityGroup" }, { "Ref" : "ZkClientSecurityGroup" } ],
+    "AssociatePublicIpAddress" : "false",
+    "InstanceType" : { "Ref" : "InstanceType" },
+    "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+      "#!/bin/bash -ex\n",
+      "# Helper function\n",
+      "function error_exit\n",
+      "{\n",
+      "  cfn-signal -e 1 -r \"$1\" ",
+      " --resource ServerGroup",
+      " --stack ", { "Ref" : "AWS::StackName" },
+      " --region ", { "Ref" : "AWS::Region" }, "\n",
+      "  exit 1\n",
+      "}\n",
+
+      "# Process CloudFormation init definitions\n",
+      "cfn-init -s ", { "Ref" : "AWS::StackName" }, " -r LaunchConfig ",
+      "    --region ", { "Ref" : "AWS::Region" }, " || error_exit 'Failed to run cfn-init'\n",
+
+      "# Move docker dir to bigger device\n",
+      "sudo service docker stop\n",
+      "mv /var/lib/docker /mnt/docker\n",
+      "ln -s /mnt/docker /var/lib/docker\n",
+      "sudo service docker start\n",
+
+      "# Set up and start Marathon \n",
+      "export HOME=/root/  # so Docker can find ~/.dockercfg\n",
+      "sudo docker pull ", { "Ref": "BambooDockerImage" }, "\n",
+      "sudo docker run -d",
+      "   --net=host",
+      "   -p 8000:8000",
+      "   -p 80:80",
+      "   -e MARATHON_ENDPOINT=",{"Ref":"MarathonEndpoint"},
+      "   -e BAMBOO_ENDPOINT=http://localhost:8000",
+      "   -e BAMBOO_ZK_HOST=`/usr/local/bin/zk-list-nodes`",
+      "   -e BAMBOO_ZK_PATH=/bamboo",
+      "   ", { "Ref": "BambooDockerImage" },
+      "   --bind=\":8000\"\n",
+
+      "# All is well so signal success\n",
+      "cfn-signal -e 0 -r \"Stack setup complete\" ",
+        " --resource ServerGroup",
+        " --stack ", { "Ref" : "AWS::StackName" },
+        " --region ", { "Ref" : "AWS::Region" }, "\n",
+      "#EOF"
+      ]]}}
+    }
+  },
+
+  "BambooNodeSecurityGroup" : {
+    "Type" : "AWS::EC2::SecurityGroup",
+    "Properties" : {
+      "GroupDescription" : "Bamboo/HaProxy Nodes",
+      "VpcId" : { "Ref" : "VpcId" },
+      "SecurityGroupIngress" : [
+      { "IpProtocol" : "tcp", "FromPort" : "8000", "ToPort" : "8000", "SourceSecurityGroupId" : { "Ref" : "BambooLbSecurityGroup"} }
+      ]
+    }
+  },
+
+  "BambooLbSecurityGroup" : {
+    "Type" : "AWS::EC2::SecurityGroup",
+    "Properties" : {
+      "GroupDescription" : "Bamboo/HaProxy LB",
+      "VpcId" : { "Ref" : "VpcId" }
+    }
+  },
+
+    "PrivateElb" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "Scheme" : "internal",
+        "SecurityGroups": [{ "Ref": "BambooLbSecurityGroup" }, { "Ref" : "AdminSecurityGroup" }, { "Ref" : "BambooNodeSecurityGroup" }],
+        "Subnets": { "Ref": "Subnets" },
+        "Listeners" : [
+        {
+          "LoadBalancerPort" : "80",
+          "Protocol" : "HTTP",
+          "InstancePort" : "80",
+          "InstanceProtocol" : "HTTP"
+        },
+        {
+          "LoadBalancerPort" : "8000",
+          "Protocol" : "HTTP",
+          "InstancePort" : "8000",
+          "InstanceProtocol" : "HTTP"
+        }
+        ],
+        "HealthCheck" : {
+          "Target" : "HTTP:8000/#/main",
+          "HealthyThreshold" : "2",
+          "UnhealthyThreshold" : "2",
+          "Interval" : "30",
+          "Timeout" : "5"
+        }
+      }
+    }
+},
+  "Outputs" : {
+    "BambooSecurityGroup" : {
+      "Value" : { "Ref" : "BambooNodeSecurityGroup" }
+    },
+    "PrivateElbAddress" : {
+      "Description" : "Bamboo private ELB",
+      "Value" : { "Fn::GetAtt" : [ "PrivateElb", "DNSName" ]}
+    }
+  }
+}

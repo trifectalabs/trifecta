@@ -1,0 +1,217 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Launches a pool of Cassandra seeds",
+
+  "Parameters" : {
+    "InstanceAmi" : {
+      "Description" : "Cassandra AMI",
+      "Type" : "String"
+    },
+
+    "InstanceType" : {
+      "Description" : "EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : [
+        "t2.micro", "t2.small", "t2.medium",
+        "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge",
+        "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge",
+          "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge",
+          "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge",
+            "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge",
+            "hs1.8xlarge", "g2.2xlarge"
+      ],
+      "ConstraintDescription" : "must be a valid, HVM-compatible EC2 instance type."
+    },
+
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "AWS::EC2::KeyPair::KeyName"
+    },
+    "ClusterSize" : {
+      "Description" : "Number of nodes to launch",
+      "Type" : "Number"
+    },
+    "DockerCredentials" : {
+      "Description" : "JSON string to be saved as .dockercfg",
+      "Type" : "String",
+      "Default" : "{}"
+    },
+    "AdminSecurityGroup" : {
+      "Description" : "Existing security group that should be granted administrative access to Mesos (e.g., 'sg-123456')",
+      "Type" : "AWS::EC2::SecurityGroup::Id"
+    },
+    "CassandraClusterDockerImage" : {
+      "Description" : "The Cassandra Docker image (format: 'registry:port/repository:version')",
+      "Type" : "String",
+      "Default" : "cassandra:2.2"
+    },
+    "Subnets" : {
+      "Description" : "List of VPC subnet IDs for the cluster. Must match the passed AvailabilityZones.",
+      "Type" : "List<AWS::EC2::Subnet::Id>"
+    },
+    "VpcId" : {
+      "Description" : "VPC associated with the provided subnets",
+      "Type" : "AWS::EC2::VPC::Id"
+    },
+    "StackCreationTimeout" : {
+      "Description" : "Timeout on initial stack creation",
+      "Type" : "String",
+      "Default": "PT10M"
+    }
+  },
+
+  "Resources" : {
+    "ServerGroup" : {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+        "MinSize" : { "Ref" : "ClusterSize" },
+        "MaxSize" : { "Ref" : "ClusterSize" },
+        "DesiredCapacity" : { "Ref" : "ClusterSize" },
+        "LoadBalancerNames" : [ { "Ref" : "PrivateElb" } ],
+        "VPCZoneIdentifier" : { "Ref" : "Subnets" },
+        "Tags" : [
+        {
+          "Key" : "role",
+          "Value" : "bamboo-node",
+          "PropagateAtLaunch" : "true"
+        }
+        ]
+      },
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : { "Ref" : "StackCreationTimeout" }
+        }
+      }
+    },
+
+  "LaunchConfig" : {
+    "Type" : "AWS::AutoScaling::LaunchConfiguration",
+    "Metadata" : {
+      "AWS::CloudFormation::Init" : {
+        "config": {
+          "packages" : {
+            "python": {
+              "awscli": []
+            }
+          },
+          "files" : {
+            "/root/.dockercfg": {
+              "content" : { "Ref" : "DockerCredentials" },
+              "mode"    : "000644",
+              "owner"   : "root",
+              "group"   : "root"
+            },
+              "/etc/default/docker": {
+                "content" : "DOCKER_OPTS=\"-g $(readlink -f /var/lib/docker)\"\n",
+                "mode"    : "000644",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+          }
+        }
+      }
+    }, 
+  
+    "Properties" : {
+    "KeyName" : { "Ref" : "KeyName" },
+    "ImageId" : { "Ref" : "InstanceAmi" },
+    "SecurityGroups" : [ { "Ref" : "AdminSecurityGroup" }, { "Ref" : "CassandraSeedSecurityGroup" } ],
+    "AssociatePublicIpAddress" : "false",
+    "InstanceType" : { "Ref" : "InstanceType" },
+    "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+      "#!/bin/bash -ex\n",
+      "# Helper function\n",
+      "function error_exit\n",
+      "{\n",
+      "  cfn-signal -e 1 -r \"$1\" ",
+      " --resource ServerGroup",
+      " --stack ", { "Ref" : "AWS::StackName" },
+      " --region ", { "Ref" : "AWS::Region" }, "\n",
+      "  exit 1\n",
+      "}\n",
+
+      "# Process CloudFormation init definitions\n",
+      "cfn-init -s ", { "Ref" : "AWS::StackName" }, " -r LaunchConfig ",
+      "    --region ", { "Ref" : "AWS::Region" }, " || error_exit 'Failed to run cfn-init'\n",
+
+      "# Move docker dir to bigger device\n",
+      "sudo service docker stop\n",
+      "mv /var/lib/docker /mnt/docker\n",
+      "ln -s /mnt/docker /var/lib/docker\n",
+      "sudo service docker start\n",
+
+      "# Set up and start Marathon \n",
+      "export HOME=/root/  # so Docker can find ~/.dockercfg\n",
+      "sudo docker pull ", { "Ref": "CassandraClusterDockerImage" }, "\n",
+      "sudo docker run -d",
+      "   --net=host",
+      "   --name=cassandra-seed",
+      "  -e CASSANDRA_START_RPC=true ",
+      "  -e CASSANDRA_SEEDS=10.0.1.123,10.0.1.125,10.0.1.126 ",
+      "   ", { "Ref": "CassandraClusterDockerImage" }, "\n",
+
+      "# All is well so signal success\n",
+      "cfn-signal -e 0 -r \"Stack setup complete\" ",
+        " --resource ServerGroup",
+        " --stack ", { "Ref" : "AWS::StackName" },
+        " --region ", { "Ref" : "AWS::Region" }, "\n",
+      "#EOF"
+      ]]}}
+    }
+  },
+
+  "CassandraSeedSecurityGroup" : {
+    "Type" : "AWS::EC2::SecurityGroup",
+    "Properties" : {
+      "GroupDescription" : "Cassandra Seed Nodes",
+      "VpcId" : { "Ref" : "VpcId" },
+      "SecurityGroupIngress" : [{
+        "IpProtocol" : "tcp",
+        "FromPort" : "9160",
+        "ToPort" : "9160",
+        "SourceSecurityGroupId" : { "Ref" : "CassandraLbSecurityGroup" }
+      }] 
+    }
+  },
+
+  "CassandraLbSecurityGroup" : {
+    "Type" : "AWS::EC2::SecurityGroup",
+    "Properties" : {
+      "GroupDescription" : "Cassandra Seed LB",
+      "VpcId" : { "Ref" : "VpcId" }
+    }
+  },
+
+    "PrivateElb" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "Scheme" : "internal",
+        "SecurityGroups": [{ "Ref": "CassandraLbSecurityGroup" }, { "Ref" : "AdminSecurityGroup" }, { "Ref" : "CassandraSeedSecurityGroup" }],
+        "Subnets": { "Ref": "Subnets" },
+        "Listeners" : [
+        {
+          "LoadBalancerPort" : "9160",
+          "Protocol" : "TCP",
+          "InstancePort" : "9160",
+          "InstanceProtocol" : "TCP"
+        },
+        {
+          "LoadBalancerPort" : "9042",
+          "Protocol" : "TCP",
+          "InstancePort" : "9042",
+          "InstanceProtocol" : "TCP"
+        } ],
+        "HealthCheck" : {
+          "Target" : "TCP:9160",
+          "HealthyThreshold" : "2",
+          "UnhealthyThreshold" : "2",
+          "Interval" : "30",
+          "Timeout" : "5"
+        }
+      }
+    }
+  }
+}

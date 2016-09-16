@@ -1,0 +1,127 @@
+@import "common"
+
+.dashnav-container
+  border-bottom: 1px solid tf-gray-1 !important
+  background-color: tf-white
+  .dashnav
+    max-width: 1200px
+    margin: 0 auto
+    .header-logo
+      margin: 10px 0 0 20px
+      cursor: pointer
+    .header-right
+      float: right
+      margin: 7px 20px 0 0
+      .user-profile
+        display: inline-block
+        border-radius: 50%
+        width: 35px
+        height: 35px
+        margin-right: 10px
+        cursor: pointer
+
+.link-icon
+  display: inline-block
+  color: tf-gray-4
+  cursor: pointer
+  vertical-align: middle
+  &:hover
+    color: tf-green-1
+
+.dashboard
+  margin: 50px auto
+  padding: 15px 35px
+  max-width: 1200px
+  font-family: 'Lato', sans-serif
+  color: tf-gray-4
+  .dashboard-header
+    font-size: 32px
+    font-weight: 300
+    display: block
+  .dashboard-subheader
+    width: 740px
+    font-size: 16px
+    display: block
+  .dashboard-info
+    font-size: 16px
+    font-weight: 500
+    display: block
+  .training-plan
+    margin-top: 25px
+    .activity-type
+      display: inline-block
+      vertical-align: top
+      width: 25px
+      margin-right: 6px
+      color: tf-gray-3
+      font-size: 20px
+    .training-plan-content
+      display: inline-block
+      .date-span
+        font-size: 18px
+        .date-divider
+          margin: 0 5px
+      .activity
+        .distance, .time, .elevation
+          display: inline-block
+          margin-right: 10px
+          .value-label
+            font-weight: 700
+            margin-right: 5px
+  .profile
+    margin-top: 10px
+    .profile-section
+      width: 740px
+      &:hover
+        background-color: tf-gray-1
+        .profile-controls
+          visibility: visible
+      .profile-controls
+        visibility: hidden
+      .profile-group
+        display: inline-block
+        width: 100%
+      .profile-element
+        width: 100%
+        padding: 0 20px
+        display: inline-block
+        border-bottom: 1px solid tf-gray-2
+
+.profile-controls
+  display: inline-block
+  vertical-align: middle
+  .link-icon
+    margin-right: 5px
+    font-size: 20px
+  .buffer
+    display: inline-block
+    width: 25px
+.profile-header
+  padding: 0 5px
+  margin-top: 10px
+  font-size: 20px
+  font-weight: 700
+  display: inline-block
+  .header-text
+    width: 665px
+    display: inline-block
+.profile-subheader
+  padding: 0 10px
+  margin-top: 5px
+  font-size: 16px
+  font-weight: 700
+  display: inline-block
+  width: 650px
+.profile-label
+  line-height: 50px
+  width: 150px
+  display: inline-block
+  vertical-align: middle
+.profile-value
+  line-height: 50px
+  width: 500px
+  display: inline-block
+  vertical-align: middle
+.profile-input-group
+  width: 500px
+  display: inline-block

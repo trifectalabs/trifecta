@@ -1,0 +1,227 @@
+{
+  "name": "raven",
+  "apidoc": {"version": "0.9.11"},
+  "description": "The intelligent training assistant. Creates and organizes activities and training plans for a user based on their current fitness level and their goals",
+  "imports": [{"uri":"http://www.apidoc.me/trifectalabs/osprey/latest/service.json"}],
+  "enums": {
+    "ZoneType": {
+      "description": "Describes the type of training zones",
+      "values": [
+        {"name": "HR", "description": "Heart Rate training zones"},
+        {"name": "Power", "description": "Cycling Power training zones"},
+        {"name": "Pace", "description": "Running Pace training zones"}
+      ]
+    },
+    "ActivityLength": {
+      "description": "Describes the length of an activity",
+      "values": [
+        {"name": "Short", "description": "Short activity defined by the ActivityType"},
+        {"name": "Average", "description": "Average length activity defined by the ActivityType"},
+        {"name": "Long", "description": "Long activity defined by the ActivityType"}
+      ]
+    }
+  },
+  "models": {
+    "TrainingPlanActivity": {
+      "description": "An activity in a training plan for a user. Distance/Time/Elevation can be left out of user defined activities to be filled in by the training plan builder.",
+      "fields": [
+        {"name": "id", "type": "uuid", "description": "ID for an activity in a training plan"},
+        {"name": "userID", "type": "uuid"},
+        {"name": "activityType", "type": "com.trifectalabs.osprey.v0.enums.ActivityType"},
+        {"name": "distance", "type": "double", "description": "The recommended distance for the user to cover in this activity", "required": false},
+        {"name": "time", "type": "double", "description": "The recommended time for the user to complete the activity", "required": false},
+        {"name": "elevation", "type": "double", "description": "The recommended elevation gain for the activity", "required": false},
+        {"name": "activityID", "type": "uuid", "description": "The activity ID that maps to this completed activity", "required": false},
+        {"name": "calendarEventID", "type": "string", "description": "The unique ID of the calendar event pertaining to this activity", "required": false},
+        {"name": "polyline", "type": "string", "description": "Polyline of route for activity", "required": false},
+        {"name": "scheduledAt", "type": "date-time-iso8601", "required": false},
+        {"name": "createdAt", "type": "date-time-iso8601"}
+      ]
+    },
+    "TrainingZone": {
+      "description": "Training zone with upper and lower bounds",
+      "fields": [
+        {"name": "lower", "type": "double", "description": "lower bound of the training zone"},
+        {"name": "upper", "type": "double", "description": "upper bound of the training zone"}
+      ]
+    },
+    "TrainingZones": {
+      "description": "Zones used to determine effort of an activity",
+      "fields": [
+        {"name": "userID", "type": "uuid"},
+        {"name": "zoneType", "type": "ZoneType", "description": "Type of training zones represented (Power, HR, Pace)"},
+        {"name": "zoneOne", "type": "TrainingZone"},
+        {"name": "zoneTwo", "type": "TrainingZone"},
+        {"name": "zoneThree", "type": "TrainingZone"},
+        {"name": "zoneFour", "type": "TrainingZone"},
+        {"name": "zoneFive", "type": "TrainingZone"},
+        {"name": "createdAt", "type": "date-time-iso8601"}
+      ]
+    },
+    "TrainingZonesForm": {
+      "description": "Form used to update user training zones",
+      "fields": [
+        {"name": "zoneOne", "type": "TrainingZone", "required": false},
+        {"name": "zoneTwo", "type": "TrainingZone", "required": false},
+        {"name": "zoneThree", "type": "TrainingZone", "required": false},
+        {"name": "zoneFour", "type": "TrainingZone", "required": false},
+        {"name": "zoneFive", "type": "TrainingZone", "required": false}
+      ]
+    },
+    "ActivityZones": {
+      "description": "Effort zones of an activity",
+      "fields": [
+        {"name": "activityID", "type": "uuid"},
+        {"name": "zoneType", "type": "ZoneType", "description": "Type of training zones represented (Power, HR, Pace)"},
+        {"name": "zoneOne", "type": "integer", "description": "Number of seconds in zone"},
+        {"name": "zoneTwo", "type": "integer", "description": "Number of seconds in zone"},
+        {"name": "zoneThree", "type": "integer", "description": "Number of seconds in zone"},
+        {"name": "zoneFour", "type": "integer", "description": "Number of seconds in zone"},
+        {"name": "zoneFive", "type": "integer", "description": "Number of seconds in zone"}
+      ]
+    },
+    "HealthCheck": {
+      "description": "Object used to respond to health checks",
+      "plural": "HealthCheck",
+      "fields": [ { "name": "status", "type": "string", "description": "example: healthy" } ]
+    }
+  },
+  "resources": {
+    "TrainingPlanActivity": {
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/:id",
+          "responses": {
+            "200": { "type": "TrainingPlanActivity" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/user/:userID",
+          "parameters": [
+            { "name": "offset", "type": "integer", "required": true },
+            { "name": "limit", "type": "integer", "required": true }
+          ],
+          "responses": {
+            "200": { "type": "[TrainingPlanActivity]" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/:id",
+          "responses": {
+            "200": { "type": "unit" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "PATCH",
+          "body": { "type": "TrainingPlanActivity" },
+          "responses": {
+            "200": { "type": "unit" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/:userID/generate",
+          "parameters": [
+            { "name": "activityType", "type": "com.trifectalabs.osprey.v0.enums.ActivityType", "required": true }
+          ],
+          "body": { "type": "[TrainingPlanActivity]" },
+          "responses": {
+            "200": { "type": "[TrainingPlanActivity]" },
+            "404": { "type": "unit" }
+          }
+        }
+      ]
+    },
+    "TrainingZones": {
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/:userID",
+          "responses": {
+            "200": { "type": "[TrainingZones]" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/:userID/:zoneType",
+          "responses": {
+            "200": { "type": "TrainingZones" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "POST",
+          "description": "Create new training zones for a user",
+          "path": "/:userID/:zoneType",
+          "body": { "type": "TrainingZonesForm" },
+          "responses": {
+            "200": { "type": "TrainingZones" },
+            "409": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "ActivityZones": {
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/:activityID",
+          "responses": {
+            "200": { "type": "[ActivityZones]" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/:activityID/:zoneType",
+          "responses": {
+            "200": { "type": "ActivityZones" },
+            "404": { "type": "unit" }
+          }
+        },
+        {
+          "method": "POST",
+          "description": "Save training zones for an activity",
+          "path": "/",
+          "body": { "type": "com.trifectalabs.osprey.v0.models.SingleActivity" },
+          "responses": {
+            "200": { "type": "unit" },
+            "409": { "type": "string" }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/level/:userID/:activityType",
+          "description": "Determine a user's initial level based on their archive of activities",
+          "parameters": [
+            { "name": "userID", "type": "uuid", "location": "path", "required": true },
+            { "name": "activityType", "type": "com.trifectalabs.osprey.v0.enums.ActivityType", "location": "path", "required": true }
+          ],
+          "body": { "type": "[com.trifectalabs.osprey.v0.models.SingleActivity]" },
+          "responses": {
+            "200": { "type": "double" },
+            "404": { "type": "unit" }
+          }
+        }
+      ]
+    },
+    "HealthCheck": {
+      "operations": [
+      {
+        "method": "GET",
+        "responses": {
+          "200": { "type": "string" }
+        }
+      }
+      ]
+    }
+  }
+}

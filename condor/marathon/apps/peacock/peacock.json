@@ -1,0 +1,42 @@
+{
+    "id": "peacock", 
+    "cpus": 0.1,
+    "mem": 500,
+    "instances": 1,
+    "cmd": "bin/peacock-server",
+    "container": {
+      "type": "DOCKER",
+      "docker": {
+        "image": "docker.trifecta.io/peacock-server:0.0.2",
+        "network": "BRIDGE",
+        "forcePullImage": true,
+        "portMappings": [
+          {
+            "containerPort": 9000,
+            "hostPort": 0,
+            "servicePort": 0,
+            "protocol": "tcp"
+          }
+        ]
+      }
+    },
+    "env": {
+      "CASSANDRA_HOST": "172.17.0.1",
+      "RAVEN_HOST": "http://raven.dev.trifecta.io",
+      "RAVEN_PORT": "80",
+      "OSPREY_HOST": "http://osprey.dev.trifecta.io",
+      "OSPREY_PORT": "80",
+      "SOCIAL_WEAVER_HOST": "http://social-weaver.dev.trifecta.io",
+      "SOCIAL_WEAVER_PORT": "80"
+    },
+    "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/HealthCheck",
+      "gracePeriodSeconds": 3,
+      "intervalSeconds": 10,
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "maxConsecutiveFailures": 5
+    }]
+}
