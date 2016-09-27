@@ -1,14 +1,79 @@
-#Trifecta
+***DISCLAIMER:*** Trifecta was originally created as a fourth-year engineering project for the University of Waterloo. Unfortunately, at this time, we have decided to move onto other projects. This project now has been open-sourced for documentation purposes - if the code here helps you in any way then it has fulfilled its purpose. It is not expected to be run in whole without modification/configuring.
 
-Trifecta is a web application which allows athletes to generate training plans fit to their fitness level (calculated from historic data pulled from Strava), schedule these training plans with their Google calendar, and have routes around their location suggested for each activity in the training plan.
+# Trifecta
 
-Trifecta consists of several microservices which work together to deliver a full application experience. These are:
+Trifecta is a web application build with the goal of dramatically simplifying the process of creating a training routine. This project is primarily targeted at cyclists, runners, and swimmers, though the basic premise should hold true for physical activity in general. Trifecta aims to simplify training routine creation through three tasks: activity generation, activity scheduling, and activity routing.
 
-	- Osprey: Central API responsible for main database interaction and periodic jobs
-	- Raven: Training plan generation.
-	- Peacock: Front-end web application. Data is sourced via JSON from Osprey. Was written in Elm; rewritten in JS.
-	- Arctic-tern: Route generation service.
-	- Social-weaver: Training plan scheduling service. Integrates with Google Calendar.
-	- Condor: Infrastructure tooling. Cloudformation templates, Docker images, etc.
+## Motivation
 
-Trifecta was created as a fourth-year engineering project for the University of Waterloo. This project now has been open-sourced for documentation purposes - if the code here helps you in any way then it has fufilled its purpose. It is not expected to be run in whole without modification/configuring.
+Over 100 million users already use online fitness tracking services such as Strava, Endomondo and MyFitnessPal. These services allow users to track and visualize data that has been collected by the sensors on various devices. These services provide a wealth of data and visual tools but fail to provide users with any actionable plans for improvement. A survey of over one hundred casual athletes found that the majority are unhappy with their planning process. Over fifty percent of respondents either use a generic training plan found online or don’t use any plan at all. Creating personalized training plans currently takes either a significant investment of time or money.
+
+## Services
+
+Trifecta consists of several microservices which work together to deliver a full application experience. We named each of these microservices after birds, cause that's just how we roll.
+
+![bird-roll](https://media.giphy.com/media/3kGnImAIzMnuM/giphy.gif)
+
+While the goal of this project was to based around physical activity, a technical requirement of it was a resulting scalable web service. As such, the infrastructure tooling and templates are included as part of the project.
+
+### Osprey
+
+[README](https://github.com/trifectalabs/trifecta/blob/master/osprey/README.md)
+
+Osprey is the central API responsible for main database interaction and periodic jobs. Osprey is the gateway to the outside world for Trifecta and how clients communicate with the service.
+
+### Raven
+
+[README](https://github.com/trifectalabs/trifecta/blob/master/raven/README.md)
+
+Raven is the training plan generation engine for Trifecta. It is responsible for calculating an athlete's current fitness level as per the Banister Model [[1]](http://fellrnr.com/wiki/Modeling_Human_Performance#The_Banister_Model). As an example, below is a visualization of [this athletes'](https://www.strava.com/athletes/1271201) calculated fitness level over time.
+
+![fitness](https://cloud.githubusercontent.com/assets/4529818/18689300/7380236c-7f56-11e6-89fe-6eface4ecd07.png)
+
+Raven is also responsible for generating training activities based on an athlete's fitness level. This is done using a Particle Swarm Optimization on the training activity space. The optimality of a set of training activities is measured by maximizing the effort output per activity while penalizing for three key factors.
+
+1. **Recovery Time:** ensure that there is enough time in two weeks to recover from two weeks worth of activities.
+2. **Level Appropriate:** ensure that each activity is not too easy or too difficult for an athlete.
+3. **Activity Variation:** ensure that activities are not all identical.
+
+### Peacock
+
+[README](https://github.com/trifectalabs/trifecta/blob/master/peacock/README.md)
+
+Peacock is the front-end web application for Trifecta which was written in Elm but scrapped due to time constraints and hacked together in JavaScript. Peacock sources data via JSON from Osprey.
+
+### Arctic Tern
+
+[README](https://github.com/trifectalabs/trifecta/blob/master/arctic-tern/README.md)
+
+Arctic Tern is the (fairly naïve) route generation service for Trifecta. Routes are generated by creating a random diamond of points starting from the athlete's home and drawing a route on streets between them. This is accomplished in the database using Open Street Maps stored in Postgres. The array of coordinates corresponding to a route are returned from the DB and can be passed to Peacock to display. Before providing a route to an athlete Arctic Tern generates many routes and optimizes to try to match the distance of the generated training activity as closely as possible.
+
+![route](https://cloud.githubusercontent.com/assets/4529818/18689240/25be3e5c-7f56-11e6-9d7f-33986ddd0923.png)
+
+### Social Weaver
+
+[README](https://github.com/trifectalabs/trifecta/blob/master/social-weaver/README.md)
+
+Social Weaver is the training plan scheduling service for Trifecta. It integrates with a Google Calendar to create "busy times" which should not be scheduled in. This free/busy information is then used to generate a schedule of the training activities for the athlete. This schedule is created using an Ant Colony Optimization technique where the cost associated with a given schedule is how far away from an optimal recovery schedule is. Social Weaver calculates recovery time for an activity using the theory of [Supercompensation](http://www.freewebs.com/velodynamics2/workoutrecovery.pdf).
+
+![recovery](https://cloud.githubusercontent.com/assets/4529818/18689301/738446c2-7f56-11e6-9131-6ec18dc4ea73.png)
+
+### Condor
+
+[README](https://github.com/trifectalabs/trifecta/blob/master/condor/README.md)
+
+Condor contains the general infrastructure resources for Trifecta. This eclectic information includes:
+
+- Common SBT project settings
+- Marathon application definitions (in JSON)
+- AWS cloudformation templates for:
+  - Zookeeper
+  - Docker Registry
+  - Cassandra
+  - Bamboo (Qubit)
+
+Trifecta was deployed upon a Mesos cluster, managed by Marathon. Redundancy was present at most areas of the stack, such that there was no single point of failure. There were multiple Mesos master's present, which leveraged Zookeeper for leader election (of which there were multiple instances). Each service was deployed within its own Docker container.
+
+![infra](https://cloud.githubusercontent.com/assets/4529818/18689241/25c20898-7f56-11e6-9af0-22e6d8ebfe32.png)
+
+By this design, we were able to quickly and effectively add or remove any number of instances of any of the sub-services to the cluster at a given time. For example, if Arctic Tern (routing service) was experiencing increased loads and response times, we could manually (or automatically with aid of AWS cloudwatch metrics) increase the number of instances of that particular service. 
